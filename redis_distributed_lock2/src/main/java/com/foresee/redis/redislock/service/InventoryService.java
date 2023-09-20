@@ -34,8 +34,6 @@ public class InventoryService
     @Autowired
     private DistributedLockFactory distributedLockFactory;
 
-    private Lock lock = new ReentrantLock();
-
 
     //V9.1,引入Redisson对应的官网推荐RedLock算法实现类
     @Autowired
@@ -83,7 +81,8 @@ public class InventoryService
     {
         String retMessage = "";
 
-        lock.lock();
+        Lock redisLock = distributedLockFactory.getDistributedLock("redis");
+        redisLock.lock();
         try
         {
             //1 查询库存信息
@@ -96,11 +95,13 @@ public class InventoryService
                 stringRedisTemplate.opsForValue().set("inventory001",String.valueOf(--inventoryNumber));
                 retMessage = "成功卖出一个商品,库存剩余:"+inventoryNumber;
                 System.out.println(retMessage+"\t"+"服务端口号"+port);
+                //暂停120秒钟线程,故意的，演示自动续期的功能。。。。。。
+                try { TimeUnit.SECONDS.sleep(120); } catch (InterruptedException e) { e.printStackTrace(); }
             }else{
                 retMessage = "商品卖完了,o(╥﹏╥)o";
             }
         }finally {
-            lock.unlock();
+            redisLock.unlock();
         }
         return retMessage+"\t"+"服务端口号"+port;
     }
